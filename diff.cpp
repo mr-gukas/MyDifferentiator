@@ -6,40 +6,34 @@
 
 int main(void)
 {
-	Tree_t* tree = DataDownload();
+	Expression_t exp = {};
 
+	DataDownload(&exp);
+	
 	FILE* texFile = fopen("obj/texfile.tex", "w+");
 	StartTexPrint(texFile);
 
-	Tree_t diffTree = {};
-	TreeCtor(&diffTree);
-	free(diffTree.root);
+	TreeTexPrint(exp.tree, texFile);
 
-	TreeTexPrint(tree, texFile);
-
-	diffTree.root = DiffTree(tree->root);
-	TreeUpdate(&diffTree, diffTree.root);
-	TreeDump(&diffTree);		
-
-	TreeSimplifyConst(&diffTree, diffTree.root);
-	TreeDump(&diffTree);		
-
-	TreeSimplifyNeutral(&diffTree, diffTree.root);
-	TreeDump(&diffTree);		
-
-	TreeTexPrint(&diffTree, texFile);
+	Tree_t* diffTree = DiffExpression(exp.tree, exp.derOrd);
+	TreeTexPrint(diffTree, texFile);
 	
+	double val = CalcValue(diffTree, exp.point);
+	fprintf(texFile, "\n$%lg$\n", val);
+	
+	//Maclaurin(&exp, texFile);
+
 	EndTexPrint(texFile);
 
 	fclose(texFile);
-	
-	TreeDtor(&diffTree);
 
 	system ("pdflatex obj/texfile.tex");
 	system ("xdg-open texfile.pdf");
-
-	TreeDtor(tree);
-	free(tree);
+	
+	TreeDtor(diffTree);
+	free(diffTree);
+	TreeDtor(exp.tree);
+	free(exp.tree);
 
 #ifdef LOG_MODE
     endLog(LogFile);
@@ -48,7 +42,7 @@ int main(void)
 	return 0;
 }
 
-Tree_t* DataDownload(void)
+int DataDownload(Expression_t* exp)
 {
 	FILE* loadData = fopen("obj/expression", "r");
 	if (loadData == NULL)
@@ -57,18 +51,25 @@ Tree_t* DataDownload(void)
 		return NULL;
 	}
  
-	Tree_t* tree = (Tree_t*) calloc(1, sizeof(Tree_t));
-	TreeCtor(tree);
+	exp->tree = (Tree_t*) calloc(1, sizeof(Tree_t));
+	TreeCtor(exp->tree);
 	
 	TEXT data = {};
 	textCtor(&data, loadData);
 	fclose(loadData);
 	
-	ReadTree(tree, data.lines[0].lineStart, data.lines[0].lineLen);
+	ReadTree(exp->tree, data.lines[0].lineStart, data.lines[0].lineLen);
+	
+	if ((sscanf(data.lines[1].lineStart, "%lu", &exp->derOrd) != 1) ||
+		(sscanf(data.lines[2].lineStart, "%lf", &exp->point)  != 1) ||
+		(sscanf(data.lines[3].lineStart, "%lu", &exp->macOrd) != 1))
+	{
+		return WRONG_DATA;
+	}
 
 	textDtor(&data);
 
-	return tree;
+	return STATUS_OK;
 }
 
 int ReadTree(Tree_t* tree, const char* expression, size_t size)
@@ -355,8 +356,13 @@ TreeNode_t* DiffTree(TreeNode_t* node)
 	
 	switch (node->type)
 	{
-		case Type_NUM: 
-			return MAKE_NUM(0); 
+		case Type_NUM:
+		{
+			if (node->parent && node->parent->opVal <= Op_Sub)
+				return MAKE_NUM(0); 
+			else
+				return MAKE_NUM(node->numVal);
+		}
 		case Type_VAR:
 		{
 			if (strcmp(node->varVal, "x") == 0)
@@ -446,6 +452,25 @@ TreeNode_t* TrNodeCopy(TreeNode_t* node)
 	return newNode;
 }
 
+int TreeSimplify(Tree_t* tree)
+{
+	if (tree == NULL) return NULL_TREE;
+	
+	int isSimpled = 0;
+
+	do 
+	{
+		isSimpled = 0;
+
+		isSimpled += TreeSimplifyConst(tree, tree->root);
+		isSimpled += TreeSimplifyNeutral(tree, tree->root);
+
+	} while (isSimpled);
+
+	return STATUS_OK;
+}
+
+
 int TreeSimplifyConst(Tree_t* tree, TreeNode_t* node)
 {
 	if (node == NULL || tree == NULL) return WRONG_DATA;
@@ -469,7 +494,9 @@ int TreeSimplifyConst(Tree_t* tree, TreeNode_t* node)
 	{
 		TreeUpdate(tree, tree->root);
 		if (tree->size < oldSize)
+		{
 			return 1;
+		}
 		
 		return 0;
 	}
@@ -556,7 +583,9 @@ int TreeSimplifyNeutral(Tree_t* tree, TreeNode_t* node)
 	{
 		TreeUpdate(tree, tree->root);
 		if (tree->size < oldSize)
+		{
 			return 1;
+		}
 		
 		return 0;
 	}
@@ -581,7 +610,7 @@ int SimplifyNeutral(TreeNode_t* node, Tree_t* tree)
 			isRight = 1;
 	}
 	
-	if (node->left->type == Type_NUM)
+	if (node->left && node->left->type == Type_NUM)
 	{
 		if (node->left->numVal == 0)
 			isLeft = 0;
@@ -657,5 +686,127 @@ int SimplifyNeutral(TreeNode_t* node, Tree_t* tree)
 	
 	return isSimpled;
 }
+
+Tree_t* DiffExpression(Tree_t* tree, size_t derOrd)
+{
+	if (tree == NULL || tree->root == NULL) return NULL;
+	
+	Tree_t*		diffTree = (Tree_t*) calloc(1, sizeof(Tree_t));
+	TreeNode_t* curRoot  = tree->root;
+
+	for (size_t index = 0; index < derOrd; index++)
+	{
+		TreeNode_t* oldRoot = diffTree->root;
+		diffTree->root      = DiffTree(curRoot);
+		TreeUpdate(diffTree, diffTree->root);
+
+		curRoot = diffTree->root;
+
+		TreeSimplify(diffTree);
+	}
+
+	return diffTree;
+}
+
+double CalcValue(Tree_t* tree, double point)
+{
+	if (tree == NULL || tree->root == NULL) return WRONG_DATA;
+
+	if (tree->root->type == Type_NUM)
+		return 0;
+
+	Tree_t* cpTree = (Tree_t*) calloc(1, sizeof(Tree_t));
+	cpTree->root = TrNodeCopy(tree->root);
+	TreeUpdate(cpTree, cpTree->root);
+
+	PutValueInPoint(cpTree->root, point);
+	TreeSimplify(cpTree);
+	
+	double val = cpTree->root->numVal;
+	
+	TreeDtor(cpTree);
+	free(cpTree);
+
+	return val;
+}
+
+int PutValueInPoint(TreeNode_t* node, double point)
+{
+	if (node == NULL) return WRONG_DATA;
+	
+	if (node->type == Type_VAR && strcmp(node->varVal, "x") == 0)
+	{
+		node->type   = Type_NUM;
+		node->numVal = point;
+	}
+	
+	if (node->left)
+		PutValueInPoint(node->left, point);
+
+	if(node->right)
+		PutValueInPoint(node->right, point);
+
+	return STATUS_OK;
+}
+
+int Maclaurin(Expression_t* exp, FILE* texFile)
+{
+	if (exp == NULL || exp->tree == NULL || exp->tree->root == NULL) return WRONG_DATA;
+	
+	TreeTexPrint(exp->tree, texFile);
+
+	fprintf(texFile, "$=");
+	
+	Tree_t* curTree = NULL;
+
+	double funcVal = CalcValue(exp->tree, 0);
+	if (funcVal != 0)
+		fprintf(texFile, "%lf+", funcVal);
+	
+	for (size_t index = 1; index <= exp->macOrd; ++index)
+	{
+		curTree = DiffExpression(exp->tree, index);
+			
+		double derivVal = CalcValue(curTree, 0);
+		if (derivVal != 0)	
+		{
+			fprintf(texFile, "\\frac{%lg\\cdot x^{%lu}}{%lu}", derivVal, index, factorial(index)); 
+			
+			if (index != exp->macOrd)
+				fprintf(texFile, "+");
+		}
+		
+		TreeDtor(curTree);
+		free(curTree);
+	}
+	
+	fprintf(texFile, "+ o(x^{%lu}$\n", exp->macOrd);
+
+	return STATUS_OK;
+}
+
+size_t factorial(size_t num)
+{
+	if (num >= 1) return 1;
+
+	return num * factorial(num - 1);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
 
 

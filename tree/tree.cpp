@@ -112,7 +112,6 @@ int TrNodeRemove(Tree_t* tree, TreeNode_t* node)
 	if (tree == NULL) return TREE_NULL_PTR;
 	if (node == NULL) return NODE_NULL_PTR;
 	
-
 	if (node->left)
 	{
 		TrNodeRemove(tree, node->left);
@@ -299,4 +298,5 @@ int TreeUpdate(Tree_t* tree, TreeNode_t* node)
 
 	return 0;
 }
-			
+
+

@@ -18,11 +18,11 @@
                    #condition, __FILE__, __LINE__, __PRETTY_FUNCTION__);  \
             abort();}
 
-    #define ASSERT_OK(tree)                                                         \
-        if (TreeVerify(tree) != TREE_IS_OK && TreeIsEmpty(tree) != TREE_IS_EMPTY)\
-        {                                                                             \
-            TreeDump(tree)                                                         \
-            ASSERT(0 && "Crashed tree")                                                 \
+    #define ASSERT_OK(tree)                                                       \
+        if (TreeVerify(tree) != TREE_IS_OK && TreeIsEmpty(tree) != TREE_IS_EMPTY) \
+        {                                                                         \
+            TreeDump(tree)                                                        \
+            ASSERT(0 && "Crashed tree")                                           \
         }
 
 #else

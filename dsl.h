@@ -4,6 +4,7 @@
 #define CR TrNodeCopy(node->right)
 
 #define MAKE_NUM(num) MakeNode(Type_NUM, Op_Null, num, NULL, NULL, NULL)
+#define MAKE_X		  MakeNode(Type_VAR, Op_Null, 0, "x", NULL, NULL)
 
 #define ADD(L, R) MakeNode(Type_OP, Op_Add, 0, NULL, L, R)
 #define SUB(L, R) MakeNode(Type_OP, Op_Sub, 0, NULL, L, R)
