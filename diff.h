@@ -6,7 +6,7 @@
 #include <stdarg.h>
 #include "dsl.h"
 #include <math.h>
-
+#include <assert.h>
 
 const size_t TEXT_SIZE = 100;
 
@@ -62,3 +62,5 @@ int PutValueInPoint(TreeNode_t* tree, double point);
 int Maclaurin(Expression_t* exp, FILE* texFile);
 size_t factorial(size_t num);
 
+int TangentEquation(Expression_t* exp, FILE* texFile);
+int BuildGraph(Expression_t* exp, FILE* texFile);

@@ -21,7 +21,9 @@ int main(void)
 	double val = CalcValue(diffTree, exp.point);
 	fprintf(texFile, "\n$%lg$\n", val);
 	
-	//Maclaurin(&exp, texFile);
+	Maclaurin(&exp, texFile);
+	TangentEquation(&exp, texFile);
+	BuildGraph(&exp, texFile);
 
 	EndTexPrint(texFile);
 
@@ -218,6 +220,8 @@ int StartTexPrint(FILE* texFile)
 					 "\\usepackage{amsmath}\n"
 					 "\\usepackage{amssymb}\n"
 					 "\\usepackage{tikz}\n"
+					 "\\usepackage{graphicx}\n"
+					 "\\graphicspath{ {./images/} }\n"
 					 "\\usepackage{textcomp}\n"
 				 	 "\\setlength{\\oddsidemargin}{-0.4in}\n"
 					 "\\setlength{\\evensidemargin}{-0.4in}\n"
@@ -227,6 +231,7 @@ int StartTexPrint(FILE* texFile)
 					 "\\newcommand\\round[1]{\left[#1\right]}\n"
 					 "\\begin{document}\n"
 					 "\\maketitle\n"
+					 //"\\includegraphics[scale=0.3]{obj/math.jpeg}\n"
 					 "\\newpage\n");
 	
 	return STATUS_OK;
@@ -276,7 +281,16 @@ int TrNodesPrint(const TreeNode_t* node, FILE* texFile)
 	switch (node->type)
 	{
 		case Type_VAR: fprintf(texFile, "%s", node->varVal);  break; 
-		case Type_NUM: fprintf(texFile, "%lg", node->numVal); break;
+		case Type_NUM: 
+		{
+			if (node->numVal < 0)
+				fprintf(texFile, "(");
+			fprintf(texFile, "%lg", node->numVal); 
+			if (node->numVal < 0)
+				fprintf(texFile, ")");
+
+			break;
+		}
 		case Type_OP:  
 		{
 			switch (node->opVal)
@@ -358,10 +372,7 @@ TreeNode_t* DiffTree(TreeNode_t* node)
 	{
 		case Type_NUM:
 		{
-			if (node->parent && node->parent->opVal <= Op_Sub)
-				return MAKE_NUM(0); 
-			else
-				return MAKE_NUM(node->numVal);
+			return MAKE_NUM(0); 
 		}
 		case Type_VAR:
 		{
@@ -403,6 +414,7 @@ TreeNode_t* DiffTree(TreeNode_t* node)
 						return MAKE_NUM(1); 
 
 					break;
+				
 				}
 				
 				default: break;
@@ -443,10 +455,10 @@ TreeNode_t* TrNodeCopy(TreeNode_t* node)
 	newNode->numVal = node->numVal;
 	strcpy(newNode->varVal, node->varVal);
 	
-	if (node->left)
+	if (node->left != nullptr)
 		newNode->left = TrNodeCopy(node->left);
 	
-	if (node->right)
+	if (node->right != nullptr)
 		newNode->right = TrNodeCopy(node->right);
 
 	return newNode;
@@ -455,18 +467,28 @@ TreeNode_t* TrNodeCopy(TreeNode_t* node)
 int TreeSimplify(Tree_t* tree)
 {
 	if (tree == NULL) return NULL_TREE;
-	
-	int isSimpled = 0;
-
+		
+	int     isSimpled = 0;
+	size_t	oldSize   = tree->size;
 	do 
 	{
 		isSimpled = 0;
+		
+		TreeSimplifyConst(tree, tree->root);
+		if (tree->size < oldSize)
+		{
+			isSimpled += 1;
+			oldSize   = tree->size;
+		}
 
-		isSimpled += TreeSimplifyConst(tree, tree->root);
-		isSimpled += TreeSimplifyNeutral(tree, tree->root);
-
+		TreeSimplifyNeutral(tree, tree->root);
+		if (tree->size < oldSize)
+		{
+			isSimpled += 1;
+			oldSize    = tree->size;
+		}
 	} while (isSimpled);
-
+	
 	return STATUS_OK;
 }
 
@@ -476,13 +498,11 @@ int TreeSimplifyConst(Tree_t* tree, TreeNode_t* node)
 	if (node == NULL || tree == NULL) return WRONG_DATA;
 		
 	int oldSize = 0;
-
-	if (node == tree->root)
-		oldSize = tree->size;
-
+	
 	if (node->left == NULL && node->right == NULL) return 0;
 	
 	int isSimpled = SimplifyConst(node, tree);
+	TreeUpdate(tree, tree->root);
 
 	if (!isSimpled && node && node->left)
 		TreeSimplifyConst(tree, node->left);
@@ -490,17 +510,7 @@ int TreeSimplifyConst(Tree_t* tree, TreeNode_t* node)
 	if (!isSimpled && node && node->right)
 		TreeSimplifyConst(tree, node->right);
 
-	if (node == tree->root)
-	{
-		TreeUpdate(tree, tree->root);
-		if (tree->size < oldSize)
-		{
-			return 1;
-		}
-		
-		return 0;
-	}
-
+	TreeUpdate(tree, tree->root);
 	return 0;
 }
 
@@ -545,15 +555,14 @@ int SimplifyConst(TreeNode_t* node, Tree_t* tree)
 
 		TreeNode_t* newNode = MakeNode(Type_NUM, Op_Null, newNum, NULL, NULL, NULL);  
 
-		if (node->parent && node->parent->left && node->parent->left == node)                                               
-			node->parent->left = newNode;                                            
-		else if (node->parent && node->parent->right && node->parent->right == node)       
-			node->parent->right = newNode;                                        
-		else if (node == tree->root)
+		if (node == tree->root)
 			tree->root = newNode;
-
+		if (node->parent && node->parent->left && node->parent->left == node)                                               
+				node->parent->left = newNode;                                            
+		else if (node->parent && node->parent->right && node->parent->right == node)       
+				node->parent->right = newNode;                                        
+		
 		TrNodeRemove(tree, node);
-			
 		isSimpled = 1;
 	}
 	
@@ -564,14 +573,10 @@ int TreeSimplifyNeutral(Tree_t* tree, TreeNode_t* node)
 {
 	if (node == NULL || tree == NULL) return WRONG_DATA;
 	
-	int oldSize = 0;
-
-	if (node == tree->root)
-		oldSize = tree->size;
-
 	if (node->left == NULL && node->right == NULL) return 0;
 	
 	int isSimpled = SimplifyNeutral(node, tree);
+	TreeUpdate(tree, tree->root);
 
 	if (!isSimpled && node && node->left)
 		TreeSimplifyNeutral(tree, node->left);
@@ -579,16 +584,7 @@ int TreeSimplifyNeutral(Tree_t* tree, TreeNode_t* node)
 	if (!isSimpled && node && node->right)
 		TreeSimplifyNeutral(tree, node->right);
 
-	if (node == tree->root)
-	{
-		TreeUpdate(tree, tree->root);
-		if (tree->size < oldSize)
-		{
-			return 1;
-		}
-		
-		return 0;
-	}
+	TreeUpdate(tree, tree->root);
 
 	return 0;
 }
@@ -602,7 +598,7 @@ int SimplifyNeutral(TreeNode_t* node, Tree_t* tree)
 	int isRight = -1;
 	int isLeft  = -1;
 
-	if (node->right->type == Type_NUM)
+	if (node->right && node->right->type == Type_NUM)
 	{
 		if (node->right->numVal == 0)
 			isRight = 0;
@@ -622,7 +618,7 @@ int SimplifyNeutral(TreeNode_t* node, Tree_t* tree)
 		return isSimpled;
 	
 	TreeNode_t* newNode = NULL;
-
+	
 	switch (node->opVal)
 	{
 		case Op_Add:
@@ -672,13 +668,13 @@ int SimplifyNeutral(TreeNode_t* node, Tree_t* tree)
 	
 	if (newNode == NULL)
 		return isSimpled;
-
+	
+	if (node == tree->root)
+		tree->root = newNode;
 	if (node->parent && node->parent->left && node->parent->left == node)                                               
 			node->parent->left = newNode;                                            
 	else if (node->parent && node->parent->right && node->parent->right == node)       
 			node->parent->right = newNode;                                        
-	else if (node == tree->root)
-				tree->root = newNode;
 					
 	TrNodeRemove(tree, node);
 		
@@ -691,29 +687,36 @@ Tree_t* DiffExpression(Tree_t* tree, size_t derOrd)
 {
 	if (tree == NULL || tree->root == NULL) return NULL;
 	
-	Tree_t*		diffTree = (Tree_t*) calloc(1, sizeof(Tree_t));
-	TreeNode_t* curRoot  = tree->root;
+	Tree_t*	diffTree = (Tree_t*) calloc(1, sizeof(Tree_t));
+	Tree_t* curTree = (Tree_t*) calloc(1, sizeof(Tree_t));
 
+	curTree->root = TrNodeCopy(tree->root);
+	TreeUpdate(curTree, curTree->root);
+	
 	for (size_t index = 0; index < derOrd; index++)
 	{
-		TreeNode_t* oldRoot = diffTree->root;
-		diffTree->root      = DiffTree(curRoot);
+		diffTree->root = DiffTree(curTree->root);
 		TreeUpdate(diffTree, diffTree->root);
-
-		curRoot = diffTree->root;
-
+		
 		TreeSimplify(diffTree);
+
+		TrNodeRemove(curTree, curTree->root);
+		curTree->root = TrNodeCopy(diffTree->root);
+		TreeUpdate(curTree, curTree->root);
+
+		TrNodeRemove(diffTree, diffTree->root);
+
 	}
 
-	return diffTree;
+	free(diffTree);
+
+	return curTree;
 }
 
 double CalcValue(Tree_t* tree, double point)
 {
 	if (tree == NULL || tree->root == NULL) return WRONG_DATA;
 
-	if (tree->root->type == Type_NUM)
-		return 0;
 
 	Tree_t* cpTree = (Tree_t*) calloc(1, sizeof(Tree_t));
 	cpTree->root = TrNodeCopy(tree->root);
@@ -721,9 +724,9 @@ double CalcValue(Tree_t* tree, double point)
 
 	PutValueInPoint(cpTree->root, point);
 	TreeSimplify(cpTree);
-	
+
 	double val = cpTree->root->numVal;
-	
+		
 	TreeDtor(cpTree);
 	free(cpTree);
 
@@ -760,41 +763,84 @@ int Maclaurin(Expression_t* exp, FILE* texFile)
 	Tree_t* curTree = NULL;
 
 	double funcVal = CalcValue(exp->tree, 0);
-	if (funcVal != 0)
-		fprintf(texFile, "%lf+", funcVal);
+	fprintf(texFile, "%lg +", funcVal);
 	
 	for (size_t index = 1; index <= exp->macOrd; ++index)
 	{
 		curTree = DiffExpression(exp->tree, index);
 			
 		double derivVal = CalcValue(curTree, 0);
-		if (derivVal != 0)	
-		{
-			fprintf(texFile, "\\frac{%lg\\cdot x^{%lu}}{%lu}", derivVal, index, factorial(index)); 
-			
-			if (index != exp->macOrd)
-				fprintf(texFile, "+");
-		}
+		fprintf(texFile, "\\frac{%lg\\cdot x^{%lu}}{%lu}", derivVal, index, factorial(index)); 
+		
+		if (index != exp->macOrd)
+			fprintf(texFile, "+");
 		
 		TreeDtor(curTree);
 		free(curTree);
 	}
 	
-	fprintf(texFile, "+ o(x^{%lu}$\n", exp->macOrd);
+	fprintf(texFile, "+ o(x^{%lu})$\n", exp->macOrd);
 
 	return STATUS_OK;
 }
 
 size_t factorial(size_t num)
 {
-	if (num >= 1) return 1;
+	if (num <= 1) return 1;
 
 	return num * factorial(num - 1);
 }
 
+int TangentEquation(Expression_t* exp, FILE* texFile)
+{
+	if (exp == NULL || exp->tree == NULL || exp->tree->root == NULL) return WRONG_DATA;
+	
+	fprintf(texFile, "\\\\Уравнение касательной к графику в точке %lg примет следующий вид: $y = ", exp->point);
+	
+	Tree_t* curTree = NULL;
+
+	double funcVal = CalcValue(exp->tree, exp->point);
+	
+	curTree = DiffExpression(exp->tree, 1);
+	double derivVal = CalcValue(curTree, exp->point);
+
+	fprintf(texFile, "%lg\\cdot(x - %lg)+%lg$\n", derivVal, exp->point, funcVal);
+		
+	TreeDtor(curTree);
+	free(curTree);
+
+	return STATUS_OK;
+}
+
+int BuildGraph(Expression_t* exp, FILE* texFile)
+{
+	if (exp == NULL || exp->tree == NULL || exp->tree->root == NULL) return WRONG_DATA;
+	
+	FILE * gnuplotPipe = popen("gnuplot -persistent", "w");
+
+	fprintf(gnuplotPipe, "set terminal png size 800, 600\n"
+						 "set output \"graph.png\"\n"
+						 "set xlabel \"X\"\n" 
+						 "set ylabel \"Y\"\n"
+						 "set grid\n"
+						 "set title \"А вы знали, что первыми художниками были армяне?\" font \"Helvetica Bold, 20\"\n"
+						 "plot '-' lt 3 linecolor 1 notitle\n");
+
+	for (double x = -20.0; x <= 20.1; x = x + 0.001)
+	{
+		fprintf(gnuplotPipe, "%lf\t %lf\n", x, CalcValue(exp->tree, x));
+	}
+	
+	fprintf(gnuplotPipe, "e");
+
+	fclose(gnuplotPipe);
+
+	fprintf(texFile,"\\\\\\\\\\includegraphics[scale=0.3]{graph.png}\n");
 
 
 
+	return STATUS_OK;
+}
 
 
 

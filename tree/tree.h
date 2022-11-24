@@ -4,6 +4,8 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdarg.h>
+#include <assert.h> 
+
 //#include "log/LOG.h"
 
 #define LOG_MODE

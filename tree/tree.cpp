@@ -122,6 +122,7 @@ int TrNodeRemove(Tree_t* tree, TreeNode_t* node)
 	}
 	
 	free(node); 
+	node = nullptr;
 
 	--tree->size;
 
@@ -251,7 +252,7 @@ void TreeDump(Tree_t* tree)
 
 	char showpic[100] = "";
 	sprintf(showpic, "eog %s\n", dumpName);
-	system(showpic);
+	//system(showpic);
 
     ++pngIndex;
 
@@ -268,18 +269,18 @@ int TreeUpdate(Tree_t* tree, TreeNode_t* node)
 {
 	if (node == NULL || tree == NULL) return TREE_NULL_PTR;
 
-	if (node == tree->root) 
+	if (node && node == tree->root) 
 		tree->size = 0;
 
 	++tree->size;
 	
-	if (node->left)
+	if (node != nullptr && node->left != nullptr)
 	{
 		node->left->parent = node;
 		TreeUpdate(tree, node->left);
 	}
 
-	if (node->right)
+	if (node != nullptr && node->right != nullptr)
 	{
 		node->right->parent = node;
 		TreeUpdate(tree, node->right);
@@ -298,5 +299,4 @@ int TreeUpdate(Tree_t* tree, TreeNode_t* node)
 
 	return 0;
 }
-
 
