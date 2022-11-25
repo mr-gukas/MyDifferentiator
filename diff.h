@@ -7,6 +7,7 @@
 #include "dsl.h"
 #include <math.h>
 #include <assert.h>
+#include "book.h"
 
 const size_t TEXT_SIZE = 100;
 
@@ -56,7 +57,7 @@ int SimplifyNeutral(TreeNode_t* node, Tree_t* tree);
 
 
 double CalcValue(Tree_t* tree, double point);
-Tree_t* DiffExpression(Tree_t* tree, size_t derOrd);
+Tree_t* DiffExpression(Tree_t* tree, size_t derOrd, FILE* texFile);
 int PutValueInPoint(TreeNode_t* tree, double point);
 
 int Maclaurin(Expression_t* exp, FILE* texFile);
@@ -64,3 +65,4 @@ size_t factorial(size_t num);
 
 int TangentEquation(Expression_t* exp, FILE* texFile);
 int BuildGraph(Expression_t* exp, FILE* texFile);
+void MakeBook(Expression_t* exp, FILE* texFile);

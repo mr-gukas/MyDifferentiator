@@ -228,7 +228,7 @@ void TreeDump(Tree_t* tree)
 	
 	fprintf(DumpFile, "strict graph {\n");
     fprintf(DumpFile, "\trankdir = TB\n");
-    fprintf(DumpFile, "\t\"info\" [shape = \"record\", style = \"filled\", fillcolor = \"grey\", label = \"{size = %lu|root = %p}\"];\n", tree->size, tree->root);
+    fprintf(DumpFile, "\t\"info\" [shape = \"record\", style = \"filled\", fillcolor = \"grey\", label = \"size = %lu\"];\n", tree->size);
 	fprintf(DumpFile, "node [color=black, shape=box, style=\"rounded, filled\"];\n");
 
 	int nodeCount = 1;

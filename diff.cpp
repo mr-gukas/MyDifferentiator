@@ -7,33 +7,15 @@
 int main(void)
 {
 	Expression_t exp = {};
-
 	DataDownload(&exp);
 	
 	FILE* texFile = fopen("obj/texfile.tex", "w+");
-	StartTexPrint(texFile);
-
-	TreeTexPrint(exp.tree, texFile);
-
-	Tree_t* diffTree = DiffExpression(exp.tree, exp.derOrd);
-	TreeTexPrint(diffTree, texFile);
-	
-	double val = CalcValue(diffTree, exp.point);
-	fprintf(texFile, "\n$%lg$\n", val);
-	
-	Maclaurin(&exp, texFile);
-	TangentEquation(&exp, texFile);
-	BuildGraph(&exp, texFile);
-
-	EndTexPrint(texFile);
-
+	MakeBook(&exp, texFile);
 	fclose(texFile);
 
 	system ("pdflatex obj/texfile.tex");
 	system ("xdg-open texfile.pdf");
 	
-	TreeDtor(diffTree);
-	free(diffTree);
 	TreeDtor(exp.tree);
 	free(exp.tree);
 
@@ -43,6 +25,55 @@ int main(void)
 
 	return 0;
 }
+
+void MakeBook(Expression_t* exp, FILE* texFile)
+{
+	//system("cvlc obj/muz.mp3");
+
+	StartTexPrint(texFile);
+	fprintf(texFile, "Итак, братик, пока мясо жарится, давай погляжу на твой задача:\\\\ f(x)=");
+
+	TreeTexPrint(exp->tree, texFile);
+	fprintf(texFile, "\\section{Производная (ара, зачем тебе это? пойдем лучше в нарды сыграем партию)}");
+
+	fprintf(texFile, "Сначала тост! %s\\\\", armenian[rand() % DRINK]);
+	fprintf(texFile, "\\includegraphics[scale=0.3]{obj/man.jpg} \n\n");
+	Tree_t* diffTree = DiffExpression(exp->tree, exp->derOrd, texFile);
+	
+	double val = CalcValue(diffTree, exp->point);
+	fprintf(texFile, "\n\nБогом клянусь, что значение %lu-ой производной в точке %lg: ", exp->derOrd, exp->point);
+	fprintf(texFile, "$%lg$\n", val);
+	fprintf(texFile, "\n\nМое семейное дерево конечно же больше этого, но всё же:");
+	fprintf(texFile, "\n\n\\includegraphics[width=20cm, height=10cm]{obj/dump001.png}\n\n");
+	fprintf(texFile, "\\section{Макларен (на самом деле Карен Макларян...)}");
+	fprintf(texFile, "Апер, ради Каренчика можно и тост произнести: %s\\\\"
+					 "Ладно-ладно, поиграй за меня, а я разложу пока\\\\" 
+					 "\\\\%s\n\n", armenian[7], difficult[rand() % DIFFICULT]);
+
+	Maclaurin(exp, texFile);
+	fprintf(texFile, "\n\n\\includegraphics[scale=0.3]{obj/mac.jpg}\n");
+
+	fprintf(texFile, "\\section{Касательная (девушка, можно стать вашей касательной...)}");
+	fprintf(texFile, "Дорогие гости, как же я рад, что вы все пришли! Поднимем бокалы: %s\\\\"
+					 "Друг, я тебе помогу с твоей касательной, но ты узнай - вдруг у нее подруга есть свободная...\\\\" 
+					 "\\\\%s\\\\", armenian[rand() % DRINK], difficult[rand() % DIFFICULT]);
+
+
+	TangentEquation(exp, texFile);
+	
+	fprintf(texFile, "\\section{График (вайййййя, а как тут Арарат нарисовать...)}");
+	fprintf(texFile, "\\includegraphics[scale=0.4]{obj/ara.jpg}\n");
+	fprintf(texFile, "Вспомнилась история: %s\\\\"
+					 "Ара, у меня ребенок с закрытыми глазами лучше рисует. Учись, студент...\\\\" 
+					 "\\\\%s\\\\", armenian[rand() * 0 + rand() % DRINK], difficult[rand() * 0 + rand() % DIFFICULT + 1]);
+
+	BuildGraph(exp, texFile);
+
+	EndTexPrint(texFile);
+	TreeDtor(diffTree);
+	free(diffTree);
+}
+
 
 int DataDownload(Expression_t* exp)
 {
@@ -60,11 +91,11 @@ int DataDownload(Expression_t* exp)
 	textCtor(&data, loadData);
 	fclose(loadData);
 	
-	ReadTree(exp->tree, data.lines[0].lineStart, data.lines[0].lineLen);
+	ReadTree(exp->tree, data.lines[1].lineStart, data.lines[1].lineLen);
 	
-	if ((sscanf(data.lines[1].lineStart, "%lu", &exp->derOrd) != 1) ||
-		(sscanf(data.lines[2].lineStart, "%lf", &exp->point)  != 1) ||
-		(sscanf(data.lines[3].lineStart, "%lu", &exp->macOrd) != 1))
+	if ((sscanf(data.lines[3].lineStart, "%lu", &exp->derOrd) != 1) ||
+		(sscanf(data.lines[7].lineStart, "%lf", &exp->point)  != 1) ||
+		(sscanf(data.lines[5].lineStart, "%lu", &exp->macOrd) != 1))
 	{
 		return WRONG_DATA;
 	}
@@ -220,20 +251,34 @@ int StartTexPrint(FILE* texFile)
 					 "\\usepackage{amsmath}\n"
 					 "\\usepackage{amssymb}\n"
 					 "\\usepackage{tikz}\n"
+					 "\\usepackage{url}\n"
 					 "\\usepackage{graphicx}\n"
 					 "\\graphicspath{ {./images/} }\n"
 					 "\\usepackage{textcomp}\n"
 				 	 "\\setlength{\\oddsidemargin}{-0.4in}\n"
 					 "\\setlength{\\evensidemargin}{-0.4in}\n"
+					 "\\setlength{\\emergencystretch}{2pt}"
 					 "\\setlength{\\textwidth}{7in}\n"
 					 "\\setlength{\\parindent}{0ex}\n"
 					 "\\setlength{\\parskip}{1ex}\n"
 					 "\\newcommand\\round[1]{\left[#1\right]}\n"
 					 "\\begin{document}\n"
 					 "\\maketitle\n"
-					 //"\\includegraphics[scale=0.3]{obj/math.jpeg}\n"
-					 "\\newpage\n");
+					 "\\newpage\n"
+					 "\\section{Введение}");
+
+	fprintf(texFile, "Хочу начать данную книгу со слов римского полководца Юлия Цезаря:\\\\"
+					 "\"Когда армяне, хватают друг друга за руки и плечом к плечу топчут землю под звук своих барабанов и абрикосовых инструментов,"
+					 " скорее колонны моего дворца превратятся в пылинки, чем их будет возможно остановить\"\\\\");
 	
+	fprintf(texFile, "Как это связано с математикой? Честно - не знаю, но моя армянская душа попросила так сделать..."
+					 " Тем более я уверен, что именно армяне придумали математику (как и вообще всё в этом мире)"
+					 " И конечно, все наслышаны об армянском гостеприимстве, так что садись рядом за стол, мой дорогой читатель, угощайся, ешь, пей, танцуй!"
+					 "\\\\ Что? Да-да, решу я тебе твою математику, но для начала выпьем за встречу, читатель джан!\\\\"
+					 "\\includegraphics[scale=0.3]{obj/food.jpg}\n\\newpage");
+
+
+					
 	return STATUS_OK;
 }
 
@@ -251,11 +296,11 @@ int TreeTexPrint(const Tree_t* tree, FILE* texFile)
 	if (tree    == NULL) return NULL_TREE;
 	if (texFile == NULL) return WRONG_DATA;
 	
-	fprintf(texFile, "\n$");
+	fprintf(texFile, "\\indent \\sloppy $");
 
 	TrNodesPrint(tree->root, texFile);
 
-	fprintf(texFile, "$\n");
+	fprintf(texFile, "$");
 
 	return STATUS_OK;
 }
@@ -270,7 +315,7 @@ int TrNodesPrint(const TreeNode_t* node, FILE* texFile)
 		!(node->opVal - node->parent->opVal > 1))
 
 		fprintf(texFile, "(");
-
+		
 #define OperPrint_(str)               \
 	fprintf(texFile, "{");			  \
 	TrNodesPrint(node->left, texFile); \
@@ -358,7 +403,7 @@ int TrNodesPrint(const TreeNode_t* node, FILE* texFile)
 		!(node->opVal - node->parent->opVal > 1))
 
 		fprintf(texFile, ")");
-
+	
 #undef OperPrint_
 
 	return STATUS_OK;
@@ -683,7 +728,7 @@ int SimplifyNeutral(TreeNode_t* node, Tree_t* tree)
 	return isSimpled;
 }
 
-Tree_t* DiffExpression(Tree_t* tree, size_t derOrd)
+Tree_t* DiffExpression(Tree_t* tree, size_t derOrd, FILE* texFile)
 {
 	if (tree == NULL || tree->root == NULL) return NULL;
 	
@@ -695,10 +740,29 @@ Tree_t* DiffExpression(Tree_t* tree, size_t derOrd)
 	
 	for (size_t index = 0; index < derOrd; index++)
 	{
+		
 		diffTree->root = DiffTree(curTree->root);
 		TreeUpdate(diffTree, diffTree->root);
 		
+		if (texFile)
+		{
+			fprintf(texFile, "\n\n  $f^{(%lu)}(x)=$", index+1);
+			TreeTexPrint(diffTree, texFile);
+			fprintf(texFile, "\n\n\n%s\n\n\n", difficult[rand() % DIFFICULT]);
+		}
+
 		TreeSimplify(diffTree);
+		
+		if (texFile)
+		{
+			fprintf(texFile, "\n\n%s\n\n", filler[(rand() % FILLER + rand() % FILLER)/2]);
+			fprintf(texFile, "\n\n $f^{(%lu)}(x)=$ ", index+1);
+			TreeTexPrint(diffTree, texFile);
+
+			if (index != derOrd - 1)
+				fprintf(texFile, "\n\n Твой ход, брат\n\n");
+		}
+		//TreeDump(diffTree);	
 
 		TrNodeRemove(curTree, curTree->root);
 		curTree->root = TrNodeCopy(diffTree->root);
@@ -709,6 +773,7 @@ Tree_t* DiffExpression(Tree_t* tree, size_t derOrd)
 	}
 
 	free(diffTree);
+	TreeDump(curTree);
 
 	return curTree;
 }
@@ -767,7 +832,7 @@ int Maclaurin(Expression_t* exp, FILE* texFile)
 	
 	for (size_t index = 1; index <= exp->macOrd; ++index)
 	{
-		curTree = DiffExpression(exp->tree, index);
+		curTree = DiffExpression(exp->tree, index, NULL);
 			
 		double derivVal = CalcValue(curTree, 0);
 		fprintf(texFile, "\\frac{%lg\\cdot x^{%lu}}{%lu}", derivVal, index, factorial(index)); 
@@ -779,7 +844,7 @@ int Maclaurin(Expression_t* exp, FILE* texFile)
 		free(curTree);
 	}
 	
-	fprintf(texFile, "+ o(x^{%lu})$\n", exp->macOrd);
+	fprintf(texFile, "+ o(x^{%lu})$\n\n", exp->macOrd);
 
 	return STATUS_OK;
 }
@@ -795,16 +860,20 @@ int TangentEquation(Expression_t* exp, FILE* texFile)
 {
 	if (exp == NULL || exp->tree == NULL || exp->tree->root == NULL) return WRONG_DATA;
 	
-	fprintf(texFile, "\\\\Уравнение касательной к графику в точке %lg примет следующий вид: $y = ", exp->point);
+	fprintf(texFile, "\n\nУравнение касательной к графику в точке %lg примет следующий вид: $y = ", exp->point);
 	
 	Tree_t* curTree = NULL;
 
 	double funcVal = CalcValue(exp->tree, exp->point);
 	
-	curTree = DiffExpression(exp->tree, 1);
+	curTree = DiffExpression(exp->tree, 1, NULL);
 	double derivVal = CalcValue(curTree, exp->point);
+	
+	double freePart = -derivVal * exp->point + funcVal;
 
-	fprintf(texFile, "%lg\\cdot(x - %lg)+%lg$\n", derivVal, exp->point, funcVal);
+	fprintf(texFile, "%lgx", derivVal);
+	if (freePart > 0)	fprintf(texFile, "+");
+	fprintf(texFile, "%lg$\n\n", freePart);
 		
 	TreeDtor(curTree);
 	free(curTree);
@@ -835,7 +904,7 @@ int BuildGraph(Expression_t* exp, FILE* texFile)
 
 	fclose(gnuplotPipe);
 
-	fprintf(texFile,"\\\\\\\\\\includegraphics[scale=0.3]{graph.png}\n");
+	fprintf(texFile,"\n\n\\includegraphics[scale=0.4]{graph.png}\n\n");
 
 
 
