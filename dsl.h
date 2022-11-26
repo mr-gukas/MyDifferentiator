@@ -1,5 +1,5 @@
-#define DL DiffTree(node->left)
-#define DR DiffTree(node->right)
+#define DL DiffTree(node->left, var)
+#define DR DiffTree(node->right, var)
 #define CL TrNodeCopy(node->left)
 #define CR TrNodeCopy(node->right)
 
