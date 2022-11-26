@@ -119,6 +119,7 @@ int TreeIsEmpty(Tree_t* tree);
 int TreeIsDestructed(Tree_t* tree);
 int TreeDtor(Tree_t* tree);
 int TreeCtor(Tree_t* tree);
+int DeleteNode(TreeNode_t* node);
 
 TreeNode_t* MakeNode(NodeType type, OperationType opVal, double numVal, const char* varVal, TreeNode_t* left, TreeNode_t* right);
 

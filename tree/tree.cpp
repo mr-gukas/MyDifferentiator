@@ -129,6 +129,25 @@ int TrNodeRemove(Tree_t* tree, TreeNode_t* node)
 	return TREE_IS_OK;
 }
 
+int DeleteNode(TreeNode_t* node)
+{
+	if (node == NULL) return NODE_NULL_PTR;
+	
+	if (node->left)
+	{
+		DeleteNode(node->left);
+	}
+	if (node->right)
+	{
+		DeleteNode(node->right);
+	}
+	
+	free(node); 
+	node = nullptr;
+
+	return TREE_IS_OK;
+}
+
 int TreeVerify(Tree_t* tree)
 {
     if (tree			       == NULL)               return TREE_NULL_PTR;

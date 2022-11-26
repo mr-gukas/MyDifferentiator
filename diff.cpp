@@ -18,7 +18,7 @@ int main(void)
 	
 	TreeDtor(exp.tree);
 	free(exp.tree);
-
+	
 #ifdef LOG_MODE
     endLog(LogFile);
 #endif
@@ -28,8 +28,6 @@ int main(void)
 
 void MakeBook(Expression_t* exp, FILE* texFile)
 {
-	//system("cvlc obj/muz.mp3");
-
 	StartTexPrint(texFile);
 	fprintf(texFile, "Итак, братик, пока мясо жарится, давай погляжу на твой задача:\\\\ f(x)=");
 
@@ -41,7 +39,8 @@ void MakeBook(Expression_t* exp, FILE* texFile)
 	Tree_t* diffTree = DiffExpression(exp->tree, exp->derOrd, texFile);
 	
 	double val = CalcValue(diffTree, exp->point);
-	fprintf(texFile, "\n\nБогом клянусь, что значение %lu-ой производной в точке %lg: ", exp->derOrd, exp->point);
+
+	fprintf(texFile, "\n\nКлянусь, что значение %lu-ой производной в точке %lg: ", exp->derOrd, exp->point);
 	fprintf(texFile, "$%lg$\n", val);
 	fprintf(texFile, "\n\nМое семейное дерево конечно же больше этого, но всё же:");
 	fprintf(texFile, "\n\n\\includegraphics[width=20cm, height=10cm]{obj/dump001.png}\n\n");
@@ -86,13 +85,15 @@ int DataDownload(Expression_t* exp)
  
 	exp->tree = (Tree_t*) calloc(1, sizeof(Tree_t));
 	TreeCtor(exp->tree);
-	
+	free(exp->tree->root);
+
 	TEXT data = {};
 	textCtor(&data, loadData);
 	fclose(loadData);
-	
-	ReadTree(exp->tree, data.lines[1].lineStart, data.lines[1].lineLen);
-	
+		
+	exp->tree->root = GetG(&(data.lines[1].lineStart));
+	TreeUpdate(exp->tree, exp->tree->root);
+
 	if ((sscanf(data.lines[3].lineStart, "%lu", &exp->derOrd) != 1) ||
 		(sscanf(data.lines[7].lineStart, "%lf", &exp->point)  != 1) ||
 		(sscanf(data.lines[5].lineStart, "%lu", &exp->macOrd) != 1))
@@ -911,17 +912,198 @@ int BuildGraph(Expression_t* exp, FILE* texFile)
 	return STATUS_OK;
 }
 
+TreeNode_t* GetG(char** str)
+{
+	TreeNode_t* node = GetE(str);
 
+	assert(**str == '\0');
 
+	return node;
+}
 
+TreeNode_t* GetE(char** str)
+{
+	TreeNode_t* node = GetT(str);
 
+	while (**str == '+' || **str == '-')
+	{
+		char op = **str;
+		(*str)++;
 
+		TreeNode_t* nodeR = GetT(str);
+		TreeNode_t* nodeL = TrNodeCopy(node);	
+		DeleteNode(node);
 
+		if (op == '+')
+			node = ADD(nodeL, nodeR);
+		else
+			node = SUB(nodeL, nodeR);	
+	}
 
+	return node;
+}
 
+TreeNode_t* GetT(char** str)
+{
+	TreeNode_t* node = GetPower(str);
 
+	while (**str == '*' || **str == '/')
+	{
+		char op = **str;
+		(*str)++;
 
+		TreeNode_t* nodeR = GetPower(str);
+		TreeNode_t* nodeL = TrNodeCopy(node);	
+		DeleteNode(node);
 
+		if (op == '*')
+			node = MUL(nodeL, nodeR);
+		else
+			node = DIV(nodeL, nodeR);
+	}
+
+	return node;
+}
+
+TreeNode_t* GetPower(char** str)
+{
+	TreeNode_t* node = GetBracket(str);
+
+	if (**str == '^') 
+	{
+		(*str)++;
+
+		TreeNode_t* nodeR = GetPower(str);
+		TreeNode_t* nodeL = TrNodeCopy(node);	
+		DeleteNode(node);
+
+		node = POW(nodeL, nodeR);
+	}
+
+	return node;
+}
+
+TreeNode_t* GetBracket(char** str)
+{
+	int sign = 1;
+
+	while (**str == '+' || **str == '-')
+	{
+		if (**str == '-')
+			sign *= -1;
+
+		(*str)++;
+	}
 	
+	if (sign == -1)
+	{
+		TreeNode_t* nodeL = MAKE_NUM(-1);
+		TreeNode_t* nodeR = GetBracket(str);	
+
+		return MUL(nodeL, nodeR);	
+	}
+	
+	if (**str == '(')
+	{
+		(*str)++;
+		
+		TreeNode_t* node = GetE(str);
+		
+		assert(**str == ')');
+		(*str)++;
+
+		return node;
+	}
+	else
+		return GetTextFunc(str);
+}
+
+TreeNode_t* GetTextFunc(char** str)
+{
+	OperationType op = isTextFunc(str);
+	
+	if (op != Op_Null)
+	{
+		TreeNode_t* nodeR = GetBracket(str); 
+		
+		switch (op)
+		{
+			case Op_Sin: return SIN(nodeR);
+			case Op_Cos: return COS(nodeR);
+			case Op_Ln:  return LN(nodeR);
+			default: break;
+		}
+	}
+	else
+	{
+		return GetVar(str);
+	}
+}
+
+OperationType isTextFunc(char** str)
+{
+
+	if (**str == 's' && *(*str + 1) == 'i' && *(*str + 2) == 'n')
+	{
+		*str += 3;
+		return Op_Sin;
+	}
+	else if (**str == 'c' && *(*str + 1) == 'o' && *(*str + 2) == 's')
+	{
+		*str += 3;
+		return Op_Cos;
+	}
+	else if (**str == 'l' && *(*str + 1) == 'n')
+	{
+		*str += 2;
+		return Op_Ln;
+	}
+
+	return Op_Null;
+}
+
+TreeNode_t* GetVar(char** str)
+{
+	TreeNode_t* node = NULL;
+	
+	if (isalpha(**str))
+	{
+		node = MakeNode(Type_VAR, Op_Null, 0, "", NULL, NULL);
+
+		char var[VAR_SIZE] = "";
+		char* oldStr = *str;
+				
+		size_t index = 0;	
+		while (isalpha(**str) && index < VAR_SIZE)
+		{
+			var[index] = **str;
+			(*str)++;
+			index++;	
+		}
+		
+		assert(oldStr != *str);
+		
+		strcpy(node->varVal, var);
+
+		return node;
+	}
+	else
+		return GetNumber(str);
+}
+
+TreeNode_t* GetNumber(char** str)
+{
+	double val   = 0;
+	int    count = 0; 
+	
+	sscanf(*str, "%lf%n", &val, &count);
+	*str += count;
+
+	assert(count);
+	
+	return MAKE_NUM(val);
+}
+
+
 
 

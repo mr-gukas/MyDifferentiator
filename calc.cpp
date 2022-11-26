@@ -123,14 +123,14 @@ double GetN(char** str)
 		isNeg = 1;
 		(*str)++;
 	}
-
+	
 	while ('0' <= **str && **str <= '9')
 	{
 		val = val * 10 + **str - '0';
 		(*str)++;
 	}
 
-	assert(*oldStr != **str);
+	assert(oldStr != *str);
 
 	return (isNeg) ? -val : val;
 }

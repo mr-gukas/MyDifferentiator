@@ -66,3 +66,14 @@ size_t factorial(size_t num);
 int TangentEquation(Expression_t* exp, FILE* texFile);
 int BuildGraph(Expression_t* exp, FILE* texFile);
 void MakeBook(Expression_t* exp, FILE* texFile);
+
+
+TreeNode_t* GetNumber(char** str);
+TreeNode_t* GetVar(char** str);
+OperationType isTextFunc(char** str);
+TreeNode_t* GetTextFunc(char** str);
+TreeNode_t* GetBracket(char** str);
+TreeNode_t* GetPower(char** str);
+TreeNode_t* GetT(char** str);
+TreeNode_t* GetE(char** str);
+TreeNode_t* GetG(char** str);
