@@ -322,7 +322,7 @@ void MakeBook(Expression_t* exp, FILE* texFile)
 	TangentEquation(exp, texFile);
 	
 	fprintf(texFile, "\\section{График (вайййййя, а как тут Арарат нарисовать...)}");
-	fprintf(texFile, "\\includegraphics[scale=0.5]{obj/ara.jpg}\n");
+	fprintf(texFile, "\\includegraphics[scale=0.6]{obj/ara.jpg}\n\n");
 	fprintf(texFile, "Вспомнилась история: %s\\\\"
 					 "Ара, у меня ребенок с закрытыми глазами лучше рисует. Учись, студент...\\\\" 
 					 "\\\\%s\\\\", armenian[rand() * 0 + rand() % DRINK], difficult[rand() * 0 + rand() % DIFFICULT + 1]);
@@ -351,7 +351,6 @@ int StartTexPrint(FILE* texFile)
 					 "\\usepackage{amsthm}\n"
 					 "\\usepackage{amsmath}\n"
 					 "\\usepackage{amssymb}\n"
-					 "\\usepackage[a3paper, total={6in, 8in}]{geometry}"
 					 "\\usepackage{tikz}\n"
 					 "\\usepackage{url}\n"
 					 "\\usepackage{graphicx}\n"
@@ -377,7 +376,7 @@ int StartTexPrint(FILE* texFile)
 					 " Тем более я уверен, что именно армяне придумали математику (как и вообще всё в этом мире)"
 					 " И конечно, все наслышаны об армянском гостеприимстве, так что садись рядом за стол, мой дорогой читатель, угощайся, ешь, пей, танцуй!"
 					 "\\\\ Что? Да-да, решу я тебе твою математику, но для начала выпьем за встречу, читатель джан!\\\\"
-					 "\\includegraphics[scale=0.5]{obj/food.jpg}\n\\newpage");
+					 "\\includegraphics[scale=0.4]{obj/food.jpg}\n\\newpage");
 
 
 					
@@ -1026,9 +1025,9 @@ int CalculateError(Expression_t* exp, FILE* texFile)
 	}
 	
 	fprintf(texFile, "\\section{Пагрешност (это туда сюда двигать...)}");
-	fprintf(texFile, "\\includegraphics[scale=0.5]{obj/tuda.jpg}\n");
+	fprintf(texFile, "\\includegraphics[scale=0.5]{obj/tuda.jpg}\n\n");
 	fprintf(texFile, "Вспомнилась история: %s\\\\"
-					 "\\\\%s\\\\", armenian[rand() * 0 + rand() % DRINK], difficult[rand() * 0 + rand() % DIFFICULT + 1]);
+					 "\\\\%s\\\\", armenian[rand() % DRINK], difficult[rand() * 0 + rand() % DIFFICULT + 1]);
 
 
 	fprintf(texFile, "\n\nБери свои погрешности и иди танцуй уже: %lg\n\n", sqrt(sigma));	
